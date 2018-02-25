@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tagbar="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#eeeeee"
+    android:orientation="vertical">
+    <com.richaelguitar.taobaotagbar.view.TagsBar
+        android:id="@+id/tag_bar"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        tagbar:max_wrap_content_count="3"
+        tagbar:max_show_tag_count="6"
+        tagbar:tag_selected_color="@color/colorPrimary"
+        android:background="#ffffff"/>
+    <TextView
+        android:id="@+id/tv_show"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:text="show"
+        android:textSize="24sp"/>
+</LinearLayout>
