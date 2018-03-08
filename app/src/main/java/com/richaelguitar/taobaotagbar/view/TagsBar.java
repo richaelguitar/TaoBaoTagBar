@@ -51,13 +51,13 @@ public class TagsBar extends LinearLayout {
     private Scroller scroller;
 
     //记录开始位置
-    private float startX;
+    private int startX;
 
     //记录最后位置
-    private float lastMoveX;
+    private int endX;
 
-    //记录移动位置
-    private float moveX;
+    //记录上次滑动的位置
+    private int lastMoveX;
 
     //左右临界边界
     private float leftBorder,rightBorder;
@@ -73,6 +73,8 @@ public class TagsBar extends LinearLayout {
 
     //最小有效滑动距离
     private int minTouchSlop;
+
+    private int pageCount;
 
 
 
@@ -92,8 +94,7 @@ public class TagsBar extends LinearLayout {
         scroller = new Scroller(context);//, new AccelerateInterpolator()
         screenWidth = getResources().getDisplayMetrics().widthPixels;
         minTouchSlop = ViewConfiguration.get(context).getScaledTouchSlop()*2;
-        Log.e(TagsBar.class.getSimpleName(),"minTouchSlop="+minTouchSlop);
-        setClickable(true);
+        setLongClickable(false);
         init(context,attrs);
 
     }
@@ -104,8 +105,7 @@ public class TagsBar extends LinearLayout {
         maxShowTagCount = array.getInt(R.styleable.TagsBar_max_show_tag_count,maxShowTagCount);
         tagSelectedColor = array.getColor(R.styleable.TagsBar_tag_selected_color,tagSelectedColor);
         array.recycle();
-        wrapWidth = screenWidth/maxShowTagCount-20;
-        Log.e(TagsBar.class.getSimpleName(),"widthPixels="+context.getResources().getDisplayMetrics().widthPixels+"wrapWidth="+wrapWidth);
+        wrapWidth = (screenWidth-getPaddingLeft()-getPaddingRight())/(maxShowTagCount);
     }
 
     public void setTagBarItemClickLisenter(OnTagBarItemClickLisenter tagBarItemClickLisenter) {
@@ -119,32 +119,23 @@ public class TagsBar extends LinearLayout {
             tagChildView.setText(tagList[i]);
             tagChildView.setGravity(Gravity.CENTER);
             tagChildView.setTextColor(getResources().getColor(R.color.black));
-            tagChildView.setDuplicateParentStateEnabled(true);
             tagChildView.setTag(i);
             //设置监听
             tagChildView.setOnClickListener(new OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    //清除选中状态
-                    clearAllSelectedState();
 
                     //防选中时多次点击
                     if(currentPosition!=(int)v.getTag()){
+                        //清除选中状态
+                        clearAllSelectedState();
                         if(tagBarItemClickLisenter!=null){
                             tagBarItemClickLisenter.onTagItemClick((int)tagChildView.getTag());
                         }
 
-//                        if(childCount>maxWrapContentCount){
-//                            //先滚动到屏幕中间
-//                            int currentRight = v.getRight();
-//                            int centerX = (screenWidth)/2;
-//                            if(currentRight>centerX){
-//                                scrollTo(-centerX,0);
-//                            }else{
-//                                scrollTo(centerX,0);
-//                            }
-//
-//                        }
+                        if(currentPosition!=-1&&childCount>maxWrapContentCount){
+                            scrollToScreenCenter(v);
+                        }
                         //记录当前点击位置
                         currentPosition = (int)v.getTag();
                         ((TagView)v).setTagSelected(true,tagSelectedColor);
@@ -164,6 +155,26 @@ public class TagsBar extends LinearLayout {
         }
     }
 
+    private void scrollToScreenCenter(View v) {
+
+        //设置选中条目居中
+        View currentView=getChildAt((int)v.getTag());
+        int left=currentView.getLeft();     //获取点击控件与父控件左侧的距离
+        int width=currentView.getMeasuredWidth();   //获得控件本身宽度
+        //判断左边界
+        if(left+width/2<screenWidth/2){
+            return;
+        }
+        //判断右边界
+        if((rightBorder-left-width/2)<screenWidth/2){
+            return;
+        }
+
+        int dx=left+width/2-screenWidth/2;
+        //使条目移动到居中显示
+        scrollTo(dx, 0);
+    }
+
     private void clearAllSelectedState() {
         for(int i=0;i<childCount;i++){
            TagView tagView = (TagView) getChildAt(i);
@@ -178,7 +189,12 @@ public class TagsBar extends LinearLayout {
             //初始化边界值
             leftBorder= getChildAt(0).getLeft();
             rightBorder = getChildAt(getChildCount()-1).getRight();
-            Log.e(TagsBar.class.getSimpleName(),"rightBorder="+rightBorder);
+            //计算总页数
+            if(childCount%maxShowTagCount != 0){
+                pageCount = childCount/maxShowTagCount+1;
+            }else{
+                pageCount = childCount/maxShowTagCount;
+            }
         }
     }
 
@@ -187,63 +203,67 @@ public class TagsBar extends LinearLayout {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        int  x =(int) event.getX();
+        Log.e(TagsBar.class.getSimpleName(),"currentx="+event.getRawX());
         switch (event.getAction()){
             case MotionEvent.ACTION_MOVE:
                 if (!scroller.isFinished()) {
                     scroller.abortAnimation();  //终止动画
                 }
-                moveX = event.getRawX();
-                float distance = lastMoveX-moveX;
-
+                int distance = lastMoveX-x;
                 if(getScrollX()+distance<leftBorder){
                     //滚回左边界
-                    scrollTo((int)leftBorder-minTouchSlop,0);
+                    scrollTo((int)leftBorder,0);
                     return true;
                 }else if(getScrollX()+getWidth()+distance>rightBorder){
                     //滚到右边界
-                    scrollTo((int)rightBorder-getWidth()+minTouchSlop,0);
+                    scrollTo((int)rightBorder-getWidth(),0);
                     return true;
                 }
 
-                scrollBy((int)distance,0);
-                lastMoveX = moveX;
+                scrollBy((int)(distance*0.08),0);
                 break;
             case MotionEvent.ACTION_UP:
                 //动画回弹
-                float dx = event.getRawX()-lastMoveX;
-                scroller.startScroll(getScrollX(),0,(int)dx,0);
-                postInvalidate();
+                endX = getScrollX();
+                int targetIndex = (endX+(int)(screenWidth/1.1))/screenWidth;
+
+                int dx = targetIndex * screenWidth - endX;
+
+                if(childCount%maxShowTagCount !=0&&targetIndex== pageCount-1){
+                    dx = 0;
+                }
+                scroller.startScroll(endX,0,dx,0,1000);
+
                 break;
         }
-        return super.onTouchEvent(event);
+        postInvalidate();
+        return true;
     }
 
     @Override
     public boolean onInterceptTouchEvent(MotionEvent ev) {
-        boolean isMove = false;//当时滚动操作的时候直接消耗，不需要把事件分发到子控件
+        int x = (int)ev.getX();
+        boolean isMove = false;
         switch (ev.getAction()){
             case MotionEvent.ACTION_DOWN:
-                startX = ev.getRawX();
-                lastMoveX = startX;
+                lastMoveX = x;
                 break;
             case MotionEvent.ACTION_MOVE:
-                moveX = ev.getRawX();
-                float diff =moveX-lastMoveX;
-                if(diff>minTouchSlop){
-                    return true;
+                int distance =lastMoveX-x;
+                if(Math.abs(distance)>minTouchSlop){
+                    isMove =  true;
                 }
-                lastMoveX = moveX;
-                isMove = true;
                 break;
         }
-        return isMove?isMove:super.onInterceptTouchEvent(ev);
+        return isMove||super.onInterceptTouchEvent(ev);
     }
 
     @Override
     public void computeScroll() {
         super.computeScroll();
         if(scroller!=null&&scroller.computeScrollOffset()){
-            scrollTo(scroller.getCurrX(),scroller.getCurrY());
+            scrollTo(scroller.getCurrX(),0);
             postInvalidate();
         }
     }

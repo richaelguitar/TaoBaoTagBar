@@ -8,6 +8,7 @@ import android.support.annotation.Nullable;
 import android.support.v7.widget.AppCompatTextView;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.view.MotionEvent;
 
 /**
  * Created by richaelguitar on 2018/2/25.
@@ -54,7 +55,6 @@ public class TagView extends AppCompatTextView {
         canvas.save();
         if(isSelected){
             mPaint.setColor(selectedPaintColor);
-            Log.e(TagView.class.getSimpleName(),"left="+getLeft()+"right="+getRight());
         }else{
             mPaint.setColor(defalutPaintColor);
         }

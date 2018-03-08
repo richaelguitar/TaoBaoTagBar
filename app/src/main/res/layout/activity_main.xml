@@ -12,9 +12,10 @@
         android:orientation="horizontal"
         android:gravity="center_vertical"
         tagbar:max_wrap_content_count="3"
-        tagbar:max_show_tag_count="6"
+        tagbar:max_show_tag_count="5"
+        android:descendantFocusability="blocksDescendants"
         tagbar:tag_selected_color="@color/colorPrimary"
-        android:background="#ffffff"/>
+        android:background="@color/white"/>
     <TextView
         android:id="@+id/tv_show"
         android:layout_width="match_parent"
